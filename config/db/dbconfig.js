@@ -1,8 +1,16 @@
 require('dotenv').config();
+const { Sequelize } = require("sequelize");
+
+// Debugging: Check if .env loaded correctly
+if (!process.env.DB_URL) {
+  console.error("⚠️ WARNING: DB_URL not found! Using default MySQL config.");
+}
+
+// Debugging: Log database connection info
+console.log("🚀 Connecting to:", process.env.DB_URL || 'mysql://foodprint_user:securepassword@localhost:3306/foodprint');
 
 const defaultConfig = {
-  url: process.env.DB_URL || 'mysql://foodprint_user:securepassword@localhost:3306/foodprint',
-  dialect: process.env.DB_DIALECT || 'mysql', // Ensure dialect is explicitly set
+  dialect: process.env.DB_DIALECT || 'mysql',
   logging: process.env.DB_LOGGING === 'true',
   dialectOptions: {
     ssl: process.env.DB_SSL === 'true' ? {
@@ -18,10 +26,12 @@ const defaultConfig = {
   },
 };
 
-module.exports = {
-  development: { ...defaultConfig, logging: true },
-  test: { ...defaultConfig, logging: false },
-  staging: { ...defaultConfig, logging: true },
-  production: { ...defaultConfig, logging: false },
-};
+// Ensures Sequelize URL parsing is handled correctly
+const sequelizeConfig = process.env.DB_URL 
+  ? new Sequelize(process.env.DB_URL, defaultConfig)
+  : new Sequelize('foodprint', 'foodprint_user', 'securepassword', {
+      host: process.env.DB_HOST || 'localhost',
+      ...defaultConfig,
+    });
 
+module.exports = sequelizeConfig;
