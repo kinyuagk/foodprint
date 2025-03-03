@@ -8,11 +8,40 @@ workflows:
         NODE_VERSION: 16
       flutter: stable
     scripts:
+      - name: Set up Node.js
+        script: |
+          echo "Using Node.js version:"
+          nvm install $NODE_VERSION
+          nvm use $NODE_VERSION
+          node -v
+          npm -v
+
       - name: Install dependencies
         script: |
+          echo "Installing dependencies..."
           npm install
+          npm install -g sequelize-cli  # Ensure Sequelize CLI is globally available
+
+      - name: Debug Environment Variables
+        script: |
+          echo "Printing environment variables..."
+          printenv | sort
+
+      - name: Check Database Configuration
+        script: |
+          echo "Checking database connection..."
+          npx sequelize db:authenticate --env production || echo "Database connection failed!"
+
+      - name: Run Migrations
+        script: |
+          echo "Running Sequelize migrations..."
+          npx sequelize db:migrate --env production || echo "Migration failed!"
+
       - name: Build the app
         script: |
+          echo "Building the app..."
           npm run build
+
     artifacts:
       - build/**/*
+
