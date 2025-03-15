@@ -64,3 +64,4 @@ src/js/_DS_Store
 #User uploaded produce_images images
 static/images/produce_images
 
+node_modules/ 
