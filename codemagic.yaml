@@ -4,6 +4,8 @@ workflows:
     environment:
       flutter: stable
     scripts:
+      - name: Navigate to project directory
+        script: cd foodprint
       - name: Install dependencies
         script: flutter pub get
       - name: Run tests
@@ -23,6 +25,8 @@ workflows:
       flutter: stable
       xcode: latest
     scripts:
+      - name: Navigate to project directory
+        script: cd foodprint
       - name: Install dependencies
         script: flutter pub get
       - name: Run tests
