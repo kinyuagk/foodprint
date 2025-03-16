@@ -14,8 +14,7 @@ workflows:
       - build/**/outputs/apk/**/*.apk
     publishing:
       email:
-        recipients:
-          - your-email@example.com
+        recipients:kinyuakinyingi@gmail.com
 
   foodprint-ios:
     name: Foodprint iOS Build
