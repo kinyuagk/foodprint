@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:foodprint/main.dart'; // Ensure this path is correct
-import 'package:flutter/material.dart'; // Add this import for Icons
+import 'package:foodprint_master/main.dart'; // Update this line
+import 'package:flutter/material.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp());
+    await tester.pumpWidget(const MyApp());
 
     // Verify that the counter starts at 0.
     expect(find.text('0'), findsOneWidget);
