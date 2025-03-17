@@ -15,7 +15,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - your-email@example.com
+          - kinyuakinyingi@gmail.com
 
   foodprint-ios:
     name: Foodprint iOS Build
