@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:foodprint/main.dart';
+import 'package:foodprint/main.dart'; // Ensure this path is correct
+import 'package:flutter/material.dart'; // Add this import for Icons
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
