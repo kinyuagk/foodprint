@@ -1,217 +1,166 @@
-require('dotenv').config({ debug: true });
-const path = require('path');
-const fs = require('fs');
+require('dotenv').config();
 const express = require('express');
-const algosdk = require('algosdk');
+const path = require('path');
+const fs = require('fs').promises;
 const cookieParser = require('cookie-parser');
-const session = require('express-session');
-const flash = require('connect-flash');
-const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-const createError = require('http-errors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const YAML = require('yamljs');
+const swaggerUi = require('swagger-ui-express');
 const cors = require('cors');
 const morgan = require('morgan');
-const swaggerJsdoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
-const CUSTOM_ENUMS = require('./utils/enums');
 
-// Initialize Express
-const app = express();
+class AppServer {
+  constructor() {
+    this.app = express();
+    this.port = process.env.PORT || 3000;
+    this.host = process.env.HOST || '0.0.0.0';
+    this.env = process.env.NODE_ENV || 'development';
 
-// =============================================
-// ENHANCED ACCOUNT RECOVERY
-// =============================================
-console.log("\n🔍 Initializing Blockchain Account Recovery...");
-
-const recoverAccounts = () => {
-  try {
-    const validateMnemonic = (mnemonic) => {
-      if (!mnemonic) throw new Error("Mnemonic is undefined");
-      const words = mnemonic.trim().split(' ');
-      if (words.length !== 25) throw new Error("Must be 25 words");
-      return mnemonic.trim();
-    };
-
-    const mnemonic1 = validateMnemonic(process.env.ACCOUNT1_MNEMONIC);
-    const mnemonic2 = validateMnemonic(process.env.ACCOUNT2_MNEMONIC);
-
-    const account1 = algosdk.mnemonicToSecretKey(mnemonic1);
-    const account2 = algosdk.mnemonicToSecretKey(mnemonic2);
-
-    const getAddress = (addr) => {
-      if (!addr) throw new Error("Address not found in .env");
-      return String(addr).trim().replace(/[^A-Z2-7]/g, '').substring(0, 58);
-    };
-
-    const expectedAddr1 = getAddress(process.env.ACCOUNT1_ADDRESS);
-    const expectedAddr2 = getAddress(process.env.ACCOUNT2_ADDRESS);
-
-    if (account1.addr !== expectedAddr1 || account2.addr !== expectedAddr2) {
-      throw new Error(`Address mismatch!`);
-    }
-
-    console.log("\n✅ Account Recovery Successful!");
-    return { account1, account2 };
-
-  } catch (error) {
-    console.error("\n🚨 Account Recovery Failed:", error.message);
-    process.exit(1);
+    this.initializeMiddlewares();
+    this.initializeStaticAssets();
+    this.initializeRoutes();
+    this.initializeSwagger();
+    this.initializeErrorHandling();
   }
-};
 
-const accounts = recoverAccounts();
+  initializeMiddlewares() {
+    // Security middleware
+    this.app.use(helmet());
+    this.app.use(cors({
+      origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+      credentials: true
+    }));
 
-// =============================================
-// MIDDLEWARE CONFIGURATION
-// =============================================
+    // Rate limiting
+    const limiter = rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100 // limit each IP to 100 requests per windowMs
+    });
+    this.app.use(limiter);
 
-// 1. Static Files
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/css', express.static(path.join(__dirname, 'public/css')));
-app.use('/js', express.static(path.join(__dirname, 'public/js')));
-app.use('/images', express.static(path.join(__dirname, 'public/images')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+    // Standard middleware
+    this.app.use(morgan('dev'));
+    this.app.use(express.json({ limit: '50mb' }));
+    this.app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+    this.app.use(cookieParser());
 
-// 2. View Engine
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'ejs');
+    // Favicon handling
+    this.app.get('/favicon.ico', (req, res) => res.status(204).end());
+  }
 
-// 3. Core Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
-}));
+  initializeStaticAssets() {
+    // Priority 1: Serve compiled frontend assets from src directory
+    this.app.use(express.static(path.join(__dirname, 'src')));
+    
+    // Priority 2: Serve bundled JS files
+    this.app.use('/js', express.static(path.join(__dirname, 'src/js')));
+    
+    // Priority 3: Serve CSS assets
+    this.app.use('/css', express.static(path.join(__dirname, 'src/css')));
+    
+    // Priority 4: Serve images
+    this.app.use('/img', express.static(path.join(__dirname, 'src/img')));
 
-// 4. Logging
-if (process.env.NODE_ENV === 'production') {
-  const accessLogStream = fs.createWriteStream(
-    path.join(__dirname, 'access.log'), 
-    { flags: 'a' }
-  );
-  app.use(morgan('combined', { stream: accessLogStream }));
-} else {
-  app.use(morgan('dev'));
+    // Handle root route - serve your main EJS template
+    this.app.get('/', (req, res) => {
+      res.sendFile(path.join(__dirname, 'views/index.html')); // Update path if using EJS
+    });
+  }
+
+  async initializeRoutes() {
+    try {
+      const routesPath = path.join(__dirname, 'routes');
+      const routeFiles = (await fs.readdir(routesPath)).filter(file => 
+        file.endsWith('.js') && file !== 'index.js'
+      );
+
+      // Load all route files dynamically
+      await Promise.all(routeFiles.map(async (file) => {
+        const routeName = file.replace('.js', '');
+        const routePath = `/${routeName.replace(/_/g, '/')}`; // Convert api_v1 to /api/v1
+        const router = require(path.join(routesPath, file));
+        
+        this.app.use(routePath, router);
+        console.log(`✓ Route mounted: ${routePath}`);
+      }));
+
+      // Load index route if exists
+      const indexPath = path.join(routesPath, 'index.js');
+      try {
+        await fs.access(indexPath);
+        const indexRouter = require(indexPath);
+        this.app.use('/', indexRouter);
+        console.log('✓ Index route mounted');
+      } catch {
+        console.log('ℹ️ No index route found');
+      }
+    } catch (err) {
+      console.error('Route initialization error:', err);
+      process.exit(1);
+    }
+  }
+
+  initializeSwagger() {
+    try {
+      const swaggerDocument = YAML.load('./swagger.yaml');
+      this.app.use(
+        '/api-docs',
+        swaggerUi.serve,
+        swaggerUi.setup(swaggerDocument, {
+          explorer: true,
+          customSiteTitle: 'FoodPrint API Docs'
+        })
+      );
+      console.log('✓ Swagger documentation loaded');
+    } catch (err) {
+      console.warn('⚠️ Swagger documentation not loaded');
+    }
+  }
+
+  initializeErrorHandling() {
+    // 404 handler
+    this.app.use((req, res) => {
+      res.status(404).json({
+        success: false,
+        message: 'Resource not found',
+        path: req.originalUrl
+      });
+    });
+
+    // Global error handler
+    this.app.use((err, req, res, next) => {
+      console.error('Server Error:', err.stack);
+      res.status(err.status || 500).json({
+        success: false,
+        message: err.message,
+        ...(this.env === 'development' && { stack: err.stack })
+      });
+    });
+  }
+
+  start() {
+    this.server = this.app.listen(this.port, this.host, () => {
+      console.log(`🚀 Server running on http://${this.host}:${this.port}`);
+      console.log(`📚 API Docs: http://${this.host}:${this.port}/api-docs`);
+      console.log(`Environment: ${this.env}`);
+    });
+
+    // Handle graceful shutdown
+    process.on('SIGTERM', () => this.shutdown());
+    process.on('SIGINT', () => this.shutdown());
+  }
+
+  shutdown() {
+    this.server?.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
+  }
 }
 
-// 5. Session Configuration
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
+// Start the server
+const server = new AppServer();
+server.start();
 
-// 6. Authentication
-app.use(passport.initialize());
-app.use(passport.session());
-app.use(flash());
-
-// Passport Configuration
-passport.use(new LocalStrategy(
-  {
-    usernameField: 'email',
-    passwordField: 'password'
-  },
-  async (email, password, done) => {
-    try {
-      const user = await db.users.findOne({ where: { email } });
-      if (!user) return done(null, false, { message: 'Incorrect email.' });
-      if (!(await user.validPassword(password))) {
-        return done(null, false, { message: 'Incorrect password.' });
-      }
-      return done(null, user);
-    } catch (err) {
-      return done(err);
-    }
-  }
-));
-
-passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await db.users.findByPk(id);
-    done(null, user);
-  } catch (err) {
-    done(err);
-  }
-});
-
-// =============================================
-// ROUTES CONFIGURATION
-// =============================================
-
-// 1. API Documentation
-const swaggerSpec = swaggerJsdoc({
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'FoodPrint API',
-      version: '1.0.0',
-    },
-  },
-  apis: ['./routes/*.js'],
-});
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// 2. Application Routes
-const routes = [
-  require('./routes'),
-  require('./routes/blockchain'),
-  require('./routes/auth'),
-  require('./routes/harvest'),
-  require('./routes/storage'),
-  // Add other route files here
-];
-
-routes.forEach(route => {
-  app.use(route.basePath || '/', route.router);
-});
-
-// =============================================
-// ERROR HANDLING
-// =============================================
-
-// 404 Handler
-app.use((req, res, next) => {
-  next(createError(404));
-});
-
-// Global Error Handler
-app.use((err, req, res, next) => {
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
-  res.status(err.status || 500);
-  res.render('error', { 
-    title: 'Error',
-    user: req.user 
-  });
-});
-
-// =============================================
-// SERVER STARTUP
-// =============================================
-
-const PORT = process.env.PORT || 3000;
-const sequelize = require('./config/db/db_sequelise');
-
-sequelize.authenticate()
-  .then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n🚀 Server running on http://0.0.0.0:${PORT}`);
-      console.log(`🔗 Account 1: ${accounts.account1.addr}`);
-      console.log(`🔗 Account 2: ${accounts.account2.addr}`);
-      console.log(`📚 API Docs: http://0.0.0.0:${PORT}/api-docs`);
-    });
-  })
-  .catch(err => {
-    console.error('❌ Database connection failed:', err);
-    process.exit(1);
-  });
-
-module.exports = app;
+module.exports = server.app;
