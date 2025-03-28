@@ -1,67 +1,129 @@
-*.swp
-*.swo
+# ======================
+# Environment
+# ======================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
 
-# Logs
-logs
+# ======================
+# Dependency directories
+# ======================
+node_modules/
+jspm_packages/
+bower_components/
+
+# ======================
+# Logs and databases
+# ======================
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.sqlite
+*.sql
+*.db
 
+# ======================
 # Runtime data
-pids
+# ======================
+uploads/
+tmp/
+temp/
 *.pid
 *.seed
-allFiredEvents
-scTopics
+*.pid.lock
 
-# Coverage directory used by tools like istanbul
-coverage
-coverage.json
-coverageEnv
+# ======================
+# Build directories
+# ======================
+build/
+dist/
+out/
+.next/
+.nuxt/
 
-# node-waf configuration
-.lock-wscript
+# ======================
+# IDE specific files
+# ======================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# Dependency directory
-node_modules
-
-# Debug log from npm
-npm-debug.log
-
-# local env variables
-.env
-
-# generated files
-bundle.js
-
-## truffle build directory
-#build/
-
-# truffle config HD Wallet mnemonic secret
-.secret
-
-# truffle From address used during migrations. Defaults to the first available account provided by your Ethereum client.
-.fromaddress
-
-# truffle config infura key
-.infurakey
-
-# database config
-dbconfig.json
-
-# macOS
+# ======================
+# OS generated files
+# ======================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# truffle
-.node-xmlhttprequest-*
+# ======================
+# Testing
+# ======================
+coverage/
+.nyc_output/
 
-# IntelliJ IDE
-.idea
+# ======================
+# Debug
+# ======================
+debug/
+*.ilk
+*.pdb
 
-# docsite artifacts
-docsite-build
-docs/api
-src/js/_DS_Store
+# ======================
+# Package files
+# ======================
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
 
-#User uploaded produce_images images
-static/images/produce_images
+# ======================
+# Documentation
+# ======================
+docs/_build/
+docs/_static/
+docs/_templates/
 
-node_modules/ 
+# ======================
+# Sequelize
+# ======================
+config/config.json
+
+# ======================
+# Project Specific
+# ======================
+/public/css/*.css
+/public/js/*.js
+!/public/css/main.css
+!/public/js/main.js
+access.log
+session-store/
+
+# ======================
+# Misc
+# ======================
+*.class
+*.pyc
+*.swp
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/

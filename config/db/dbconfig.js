@@ -1,65 +1,48 @@
 require('dotenv').config();
 
+const commonConfig = {
+  username: process.env.DB_USER || 'foodprint_user',
+  password: process.env.DB_PASSWORD || 'Kinyingi01@',
+  database: process.env.DB_NAME || 'foodprint_db',
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432, // PostgreSQL default port
+  dialect: 'postgres',
+  dialectModule: require('pg'), // Use pg module for PostgreSQL
+  pool: {
+    max: 10,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  },
+  define: {
+    timestamps: true,
+    underscored: true
+  }
+};
+
 module.exports = {
   development: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: process.env.DB_DIALECT || 'mysql', // Default to MySQL
-    logging: true,
+    ...commonConfig,
+    logging: console.log,
     dialectOptions: {
-      // For MySQL native password authentication
-      authPlugins: {
-        mysql_native_password: true
-      }
-    },
-    pool: {
-      max: 10,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
     }
   },
   test: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: process.env.DB_DIALECT || 'mysql',
-    logging: false,
-    dialectOptions: {
-      authPlugins: {
-        mysql_native_password: true
-      }
-    },
-    pool: {
-      max: 10,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    }
+    ...commonConfig,
+    logging: false
   },
   production: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: process.env.DB_DIALECT || 'mysql',
+    ...commonConfig,
     logging: false,
     dialectOptions: {
-      authPlugins: {
-        mysql_native_password: true
-      }
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
     },
     pool: {
-      max: 10,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
+      max: 20,
+      min: 5,
+      acquire: 60000,
+      idle: 30000
     }
   }
 };
